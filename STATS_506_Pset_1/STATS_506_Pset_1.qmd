@@ -1,0 +1,217 @@
+---
+title: "STATS_506_Pset_1"
+format: 
+  html:
+      code-fold: true
+      code-summary: "Show the code"
+editor: visual
+---
+
+## Packages
+
+```{r}
+library(tidyverse)
+```
+
+## Problem 1 - Wine Data
+
+### a.
+
+```{r}
+wine_data <- read.csv("/Users/hejie/Downloads/STATS 506/wine/wine.data", header = FALSE)
+
+wine_names <- read.csv("/Users/hejie/Downloads/STATS 506/wine/wine.names", header = FALSE)
+
+colnames(wine_data) <- c("Class", "Alcohol", "Malic_Acid", "Ash", "Alcalinity_of_Ash", "Magnesium", "Total_Phenols", "Flavanoids", "Nonflavanoid_Phenols", "Proanthocyanins", "Color_Intensity", "Hue", "OD280_OD315_of_Diluted_Wines", "Proline")
+```
+
+### b.
+
+```{r}
+table(wine_data$Class)
+```
+
+They correctly reported in the "wine.names"
+
+### c.
+
+#### 1.
+
+```{r}
+correlation <- cor(wine_data$Alcohol, wine_data$Color_Intensity)
+correlation
+```
+
+#### 2.
+
+```{r}
+class_correlations <- wine_data %>%
+  group_by(Class) %>%
+  summarize(correlation = cor(Alcohol, Color_Intensity))
+class_correlations
+```
+
+Class 1 has the highest correlation and Class 2 has the lowest correlation.
+
+#### 3.
+
+```{r}
+max_color_intensity_wine <- wine_data[which.max(wine_data$Color_Intensity), ]
+max_color_intensity_wine
+```
+
+#### 4.
+
+```{r}
+higher_proanthocyanins <- sum(wine_data$Proanthocyanins > wine_data$Ash) / nrow(wine_data) * 100
+higher_proanthocyanins
+```
+
+### d.
+
+```{r}
+overall_avg <- colMeans(wine_data)
+
+class_avg <- aggregate(. ~ Class, data = wine_data, FUN = mean)
+
+avg_table <- rbind(overall_avg, class_avg)
+avg_table
+```
+
+### e.
+
+```{r}
+t_test_1_vs_2 <- t.test(wine_data$Total_Phenols[wine_data$Class == 1], 
+                        wine_data$Total_Phenols[wine_data$Class == 2])
+
+t_test_1_vs_3 <- t.test(wine_data$Total_Phenols[wine_data$Class == 1], 
+                        wine_data$Total_Phenols[wine_data$Class == 3])
+
+t_test_2_vs_3 <- t.test(wine_data$Total_Phenols[wine_data$Class == 2], 
+                        wine_data$Total_Phenols[wine_data$Class == 3])
+
+t_test_1_vs_2$p.value
+t_test_1_vs_3$p.value
+t_test_2_vs_3$p.value
+```
+
+All three p-values are smaller than 0.05, which means that for each pair of classes (1 vs. 2, 1 vs. 3, and 2 vs. 3), the differences in phenol levels are statistically significant.
+
+## Problem 2 - AskAManager.org Data
+
+### a.
+
+```{r}
+askamanager_data <- read.csv("/Users/hejie/Downloads/STATS 506/AskAManager.csv")
+```
+
+### b.
+
+```{r}
+new_column_names <- c(" ", "timestamp", "age", "industry", "job_title", "job_context", "annual_salary", "additional_compensation", "currency", "other_currency", "income_context", "country", "state", "city", "years_experience_overall", "years_experience_field", "education", "gender", "race")
+
+colnames(askamanager_data) <- new_column_names
+colnames(askamanager_data)
+```
+
+### c.
+
+```{r}
+before_filter <- nrow(askamanager_data)
+
+askamanager_usd <- askamanager_data %>% filter(currency == "USD")
+
+after_filter <- nrow(askamanager_usd)
+
+paste("Before filter: ", before_filter)
+paste("After filter: ", after_filter)
+```
+
+### d.
+
+```{r}
+before_filter_age <- nrow(askamanager_usd)
+
+askamanager_filtered <- askamanager_usd %>%
+  filter(age >= 18, 
+         years_experience_field >= 0, 
+         years_experience_overall >= 0,
+         years_experience_field <= years_experience_overall)
+
+after_filter_age <- nrow(askamanager_filtered)
+
+paste("Before filtering for age and experience: ", before_filter_age)
+paste("After filtering for age and experience: ", after_filter_age)
+```
+
+### f.
+
+```{r}
+before_salary_filter <- nrow(askamanager_filtered)
+
+askamanager_clean <- askamanager_filtered %>%
+  filter(annual_salary >= 1000, annual_salary <= 500000)
+
+after_salary_filter <- nrow(askamanager_clean)
+
+paste("Before filtering for salary: ", before_salary_filter)
+paste("After filtering for salary: ", after_salary_filter)
+```
+
+```{r}
+final_sample_size <- nrow(askamanager_clean)
+paste("Final sample size: ", final_sample_size)
+```
+
+## Problem 3 - Palindromic Numbers
+
+### a.
+
+```{r}
+isPalindromic <- function(x) {
+
+  if (!is.numeric(x) || x <= 0 || x != as.integer(x)) {
+    stop("Input must be a positive integer.")
+  }
+  
+  reversed <- as.numeric(paste(rev(strsplit(as.character(x), NULL)[[1]]), collapse = ""))
+  
+  is_palindrome <- x == reversed
+  
+  return(list(isPalindromic = is_palindrome, reversed = reversed))
+}
+
+
+isPalindromic(728827)
+isPalindromic(39951) 
+```
+
+### b.
+
+```{r}
+nextPalindrome <- function(x) {
+
+  if (!is.numeric(x) || x <= 0 || x != as.integer(x)) {
+    stop("Input must be a positive integer.")
+  }
+  
+  x <- x + 1
+  while (TRUE) {
+
+    if (isPalindromic(x)$isPalindromic) {
+      return(x)
+    }
+    x <- x + 1
+  }
+}
+
+nextPalindrome(7152)
+nextPalindrome(765431537) 
+```
+
+### c.
+
+```{r}
+numbers <- c(391, 9928, 19727719, 109, 2)
+sapply(numbers, nextPalindrome)
+```
