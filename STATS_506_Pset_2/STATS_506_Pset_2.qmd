@@ -1,0 +1,368 @@
+---
+title: "STATS_506_Pset2"
+format: 
+  html:
+      code-fold: true
+      code-summary: "Show the code"
+      embed-resources: true
+      smooth-scroll: true
+editor: visual
+author: Jie He
+execute:
+  warning: false
+---
+
+## Problem 1 - Dice Game
+
+### a. Implementations of the Dice Game
+
+```{r}
+# Play dice game function - Version 1 (Using a loop)
+
+#' Play dice game
+#'
+#' This function simulates a dice game where you roll a die and win or lose money
+#' based on the outcome. Rolling a 3 or 5 wins twice the roll value, any other
+#' roll results in losing $2.
+#' 
+#' @param num_dice The number of dice rolls to simulate
+#' @return The total winnings from the game
+play_dice_loop <- function(num_dice) {
+  winnings <- 0
+  set.seed(123)
+  for (i in 1:num_dice) {
+    roll <- sample(1:6, 1)  # Simulate a die roll
+    if (roll == 3 || roll == 5) {
+      winnings <- winnings + (2 * roll)  # Win double the roll value
+    } else {
+      winnings <- winnings - 2  # Lose $2
+    }
+  }
+  return(winnings)
+}
+
+# Example of using the function
+play_dice_loop(10)
+```
+
+```{r}
+# Version 2 (Using built-in vectorized R functions)
+
+#' Play dice game (vectorized)
+#'
+#' This function simulates the dice game using vectorized R functions. 
+#' It rolls the dice multiple times and computes the winnings in a more efficient way.
+#' 
+#' @param num_dice The number of dice rolls to simulate
+#' @return The total winnings from the game
+play_dice_vectorized <- function(num_dice) {
+  set.seed(123)
+  rolls <- sample(1:6, num_dice, replace = TRUE)
+  winnings <- ifelse(rolls == 3 | rolls == 5, 2 * rolls, -2)
+  return(sum(winnings))
+}
+
+# Example of using the function
+play_dice_vectorized(10)
+```
+
+```{r}
+# Version 3 (Using table to collapse results)
+
+#' Play dice game (with table)
+#'
+#' This function simulates the dice game using the table function to summarize results.
+#' It rolls the dice and then processes the outcomes using the table function.
+#' 
+#' @param num_dice The number of dice rolls to simulate
+#' @return The total winnings from the game
+play_dice_table <- function(num_dice) {
+  set.seed(123)
+  rolls <- sample(1:6, num_dice, replace = TRUE)
+  roll_table <- table(rolls)
+  
+  winnings <- 0
+  winnings_3 <- ifelse("3" %in% names(roll_table), roll_table["3"] * 6, 0)
+  winnings_5 <- ifelse("5" %in% names(roll_table), roll_table["5"] * 10, 0)
+  losses <- (num_dice - winnings_3/6 - winnings_5/10) * -2
+  winnings <- winnings_3 + winnings_5 + losses
+  
+  return(winnings)
+}
+
+# Example of using the function
+play_dice_table(10)
+```
+
+```{r}
+# Version 4 (Using apply function)
+
+#' Play dice game (using apply)
+#'
+#' This function simulates the dice game using one of the apply family functions.
+#' It uses `sapply` to efficiently handle multiple dice rolls.
+#' 
+#' @param num_dice The number of dice rolls to simulate
+#' @return The total winnings from the game
+play_dice_apply <- function(num_dice) {
+  set.seed(123)
+  rolls <- sample(1:6, num_dice, replace = TRUE)
+  winnings <- sapply(rolls, function(roll) {
+    if (roll == 3 || roll == 5) {
+      return(2 * roll)
+    } else {
+      return(-2)
+    }
+  })
+  return(sum(winnings))
+}
+
+# Example of using the function
+play_dice_apply(10)
+```
+
+### b. Test with 3 and 3000 rolls
+
+```{r}
+# Test each function with an input of 3
+test_input_small <- 3
+loop_results_small <- play_dice_loop(test_input_small)
+vectorized_results_small <- play_dice_vectorized(test_input_small)
+table_results_small <- play_dice_table(test_input_small)
+apply_results_small <- play_dice_apply(test_input_small)
+
+# Display the results
+cat("Results with 3 rolls:\n")
+cat("Loop Version: ", loop_results_small, "\n")
+cat("Vectorized Version: ", vectorized_results_small, "\n")
+cat("Table Version: ", table_results_small, "\n")
+cat("Apply Version: ", apply_results_small, "\n\n")
+```
+
+```{r}
+# Test each function with an input of 3000
+test_input_large <- 3000
+loop_results_large <- play_dice_loop(test_input_large)
+vectorized_results_large <- play_dice_vectorized(test_input_large)
+table_results_large <- play_dice_table(test_input_large)
+apply_results_large <- play_dice_apply(test_input_large)
+
+# Display the results
+cat("Results with 3000 rolls:\n")
+cat("Loop Version: ", loop_results_large, "\n")
+cat("Vectorized Version: ", vectorized_results_large, "\n")
+cat("Table Version: ", table_results_large, "\n")
+cat("Apply Version: ", apply_results_large, "\n")
+```
+
+### c. Check for identical results
+
+```{r}
+# Test each function with an input of 3
+test_input_small <- 3
+loop_results_small <- play_dice_loop(test_input_small)
+vectorized_results_small <- play_dice_vectorized(test_input_small)
+table_results_small <- play_dice_table(test_input_small)
+apply_results_small <- play_dice_apply(test_input_small)
+
+# Display the results
+cat("Results with 3 rolls:\n")
+cat("Loop Version: ", loop_results_small, "\n")
+cat("Vectorized Version: ", vectorized_results_small, "\n")
+cat("Table Version: ", table_results_small, "\n")
+cat("Apply Version: ", apply_results_small, "\n\n")
+```
+
+```{r}
+# Test each function with an input of 3000
+test_input_large <- 3000
+loop_results_large <- play_dice_loop(test_input_large)
+vectorized_results_large <- play_dice_vectorized(test_input_large)
+table_results_large <- play_dice_table(test_input_large)
+apply_results_large <- play_dice_apply(test_input_large)
+
+# Display the results
+cat("Results with 3000 rolls:\n")
+cat("Loop Version: ", loop_results_large, "\n")
+cat("Vectorized Version: ", vectorized_results_large, "\n")
+cat("Table Version: ", table_results_large, "\n")
+cat("Apply Version: ", apply_results_large, "\n")
+```
+
+### d. Benchmarking Performance
+
+```{r}
+library(microbenchmark)
+
+# Benchmark for input of 1000 dice rolls
+benchmark_1000 <- microbenchmark(
+  loop = play_dice_loop(1000),
+  vectorized = play_dice_vectorized(1000),
+  table = play_dice_table(1000),
+  apply = play_dice_apply(1000),
+  times = 10
+)
+print(benchmark_1000)
+
+# Benchmark for input of 100,000 dice rolls
+benchmark_100000 <- microbenchmark(
+  loop = play_dice_loop(100000),
+  vectorized = play_dice_vectorized(100000),
+  table = play_dice_table(100000),
+  apply = play_dice_apply(100000),
+  times = 10
+)
+print(benchmark_100000)
+```
+
+#### Discuss the results
+
+```{r}
+# Key Observations
+# Vectorized is the fastest in both cases, 
+#  taking only 63.96 µs for 1,000 rolls and 5.61 ms for 100,000 rolls. 
+# It scales efficiently due to R’s internal optimizations.
+# Table-based is a close second, with similar performance to vectorized, 
+#  making it a solid alternative.
+# Apply performs moderately well but is slower, especially as input size increases.
+# Loop is consistently the slowest, performing poorly for larger inputs due to high overhead.
+# 
+# Conclusion
+# The vectorized implementation is the most efficient and should be used for large-scale simulations. 
+# The table-based approach is a reasonable alternative, 
+#  while both apply and loop are significantly slower and less suitable for large datasets.
+```
+
+### e. Monte Carlo Simulation to Evaluate Fairness
+
+```{r}
+# Monte Carlo simulation to check fairness
+monte_carlo_sim <- function(num_trials) {
+  results <- replicate(num_trials, play_dice_vectorized(1))
+  mean(results)  # Expected winnings per game
+}
+
+# Run Monte Carlo simulation with 100,000 trials
+set.seed(123)
+monte_carlo_result <- monte_carlo_sim(100000)
+cat("Expected winnings per game (Monte Carlo simulation): ", monte_carlo_result, "\n")
+
+# Evaluate fairness
+if (monte_carlo_result == 0) {
+  cat("The game is fair.\n")
+} else if (monte_carlo_result > 0) {
+  cat("The game favors the player.\n")
+} else {
+  cat("The game favors the house.\n")
+}
+```
+
+## Problem 2 - Linear Regression
+
+### a. Renaming Columns
+
+```{r}
+# Load required packages
+library(tidyverse)
+library(interactions)
+
+# Rename the columns to more reasonable lengths
+# Function to rename columns for readability
+rename_columns <- function(df) {
+  colnames(df) <- c("Height", "Length", "Width", "Driveline", "EngineType",
+                    "Hybrid", "Gears", "Transmission", "CityMPG", "FuelType",
+                    "HighwayMPG", "Classification", "ID", "Make", "Model",
+                    "Year", "Horsepower", "Torque")
+  return(df)
+}
+
+# Apply the function
+cars <- read.csv("/Users/hejie/Downloads/cars.csv")
+cars <- rename_columns(cars)
+
+```
+
+### b. Filter for Gasoline Vehicles
+
+```{r}
+# Restrict data to cars with Fuel Type "Gasoline"
+cars_gasoline <- filter(cars, cars$FuelType == "Gasoline")
+```
+
+### c. Distribution of Highway MPG
+
+```{r}
+# Examine the distribution of HighwayMPG
+# Summary and visualization
+summary(cars_gasoline$HighwayMPG)
+ggplot(cars_gasoline, aes(x = HighwayMPG)) +
+  geom_histogram(bins = 30, fill = "blue", color = "white") +
+  labs(title = "Distribution of Highway MPG", x = "Highway MPG", y = "Count")
+
+# Check for outliers
+head(sort(cars_gasoline$HighwayMPG, decreasing = TRUE))
+
+# Summary and visualization with outlier excluded
+cars_gasoline_no_outlier <- filter(cars_gasoline, cars_gasoline$HighwayMPG != 223)
+summary(cars_gasoline_no_outlier$HighwayMPG)
+ggplot(cars_gasoline_no_outlier, aes(x = HighwayMPG)) +
+  geom_histogram(bins = 30, fill = "blue", color = "white") +
+  labs(title = "Distribution of Highway MPG", x = "Highway MPG", y = "Count")
+```
+
+#### Justification for not using transformation
+
+```{r}
+# Based on the updated distribution of Highway MPG after removing the single outlier (MPG = 223), 
+#  the data no longer exhibits significant skewness, and the range (13 to 42 MPG) is quite narrow. 
+# The summary statistics show that the values are concentrated between 21 and 28 MPG, 
+#  with no extreme deviations from the central values. 
+# Since the distribution is reasonably symmetric and does not contain severe outliers that could distort the regression model, a transformation is unnecessary. 
+# The current distribution is well-suited for analysis in its raw form.
+```
+
+### d. Linear Regression Model
+
+```{r}
+# Fit a linear regression model predicting Highway MPG on the highway
+# Control for horsepower, dimensions, and the year (categorical)
+lm_model <- lm(HighwayMPG ~ Torque + Horsepower + Height + Length + Width + factor(Year), data = cars_gasoline)
+summary(lm_model)
+
+# The estimated coefficient for Torque in the model is -0.0507, indicating that for every 1 unit increase in torque, highway MPG decreases by approximately 0.0507 units, holding all other variables constant. 
+# This negative coefficient suggests an inverse relationship between torque and fuel efficiency on the highway, meaning higher torque tends to result in slightly lower gas mileage. 
+# The relationship is statistically significant, with a p-value of less than 2e-16, providing strong evidence that torque has a meaningful and negative effect on highway MPG.
+```
+
+### e. Interaction Plot
+
+```{r}
+# Check for interaction between torque and horsepower
+# Refit the model and generate an interaction plot
+lm_interaction_model <- lm(HighwayMPG ~ Torque * Horsepower + Height + Length + Width + factor(Year), data = cars_gasoline)
+summary(lm_interaction_model)
+
+# Get a reasonable single value for Year: I chose the mode
+common_year <- as.numeric(names(sort(table(cars_gasoline$Year), decreasing = TRUE)[1]))
+
+# Interaction plot: how torque relates to MPG at different horsepower levels at the mode year
+interact_plot(lm_interaction_model, pred = Torque, modx = Horsepower, plot.points = TRUE, 
+              interval = TRUE, data = cars_gasoline, at = list(Year = common_year))
+
+```
+
+### f. Calculate Beta Manually
+
+```{r}
+# Manually calculate beta coefficients using matrix algebra
+# Create design matrix
+X <- model.matrix(~ Torque + Horsepower + Height + Length + Width + factor(Year), data = cars_gasoline)
+y <- cars_gasoline$HighwayMPG
+
+# Calculate beta using matrix algebra
+beta <- solve(t(X) %*% X) %*% t(X) %*% y
+beta
+
+# Confirm if the result is the same as lm() output
+lm_model$coefficients
+```
