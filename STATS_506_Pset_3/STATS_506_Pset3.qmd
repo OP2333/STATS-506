@@ -12,7 +12,7 @@ execute:
   warning: false
 ---
 
-## Github Link: 
+## Github Link: <https://github.com/OP2333/STATS-506/tree/main/STATS_506_Pset_3>
 
 ## Problem 1 - Vision
 
@@ -177,7 +177,7 @@ chi_test
 library(DBI)
 library(RSQLite)
 
-sakila <- dbConnect(RSQLite::SQLite(), "sakila_master.db")
+sakila <- dbConnect(RSQLite::SQLite(), "/Users/hejie/Downloads/STATS 506/sakila_master.db")
 
 dbListTables(sakila)
 
@@ -277,7 +277,7 @@ gg(
 
 ```{r}
 # Load the dataset
-us_500 <- read_csv("us-500.csv")
+us_500 <- read_csv("/Users/hejie/Downloads/STATS 506/us-500.csv")
 
 # Display the first few rows to understand the structure
 head(us_500)
