@@ -1,0 +1,247 @@
+---
+title: "STATS_506_Pset4"
+format: 
+  html:
+      code-fold: true
+      code-summary: "Show the code"
+      embed-resources: true
+      smooth-scroll: true
+editor: visual
+author: Jie He
+execute:
+  warning: false
+---
+
+## Problem 1 - Tidyverse
+
+### a. Generate tables for departure and arrival delays
+
+Install and load the package nycflights13
+
+```{r}
+# Install and load the package nycflights13
+library(nycflights13)
+library(tidyverse)
+
+flights <- nycflights13::flights
+airports <- nycflights13::airports
+```
+
+Generating Table 1: Departure Delay Summary
+
+```{r}
+summary_dep_delay <- flights %>%
+  group_by(origin) %>%
+  summarise(
+    mean_departure_delay = round(mean(dep_delay, na.rm = TRUE), 2),
+    median_departure_delay = round(median(dep_delay, na.rm = TRUE), 2)
+  ) %>%
+  ungroup() %>%
+  arrange(desc(mean_departure_delay)) %>%
+  left_join(airports, by = c("origin" = "faa")) %>%
+  select(name, mean_departure_delay, median_departure_delay)
+
+print(summary_dep_delay)
+```
+
+Generating Table 2: Arrival Delay Summary
+
+```{r}
+summary_arr_delay <- flights %>%
+  group_by(dest) %>%
+  filter(n() >= 10) %>%  # Exclude destinations with fewer than 10 flights
+  summarise(
+    mean_arrival_delay = round(mean(arr_delay, na.rm = TRUE), 2),
+    median_arrival_delay = round(median(arr_delay, na.rm = TRUE), 2)
+  ) %>%
+  ungroup() %>%
+  arrange(desc(mean_arrival_delay)) %>%
+  left_join(airports, by = c("dest" = "faa")) %>%
+  select(name, mean_arrival_delay, median_arrival_delay)
+
+print(na.omit(summary_arr_delay), n = Inf)
+```
+
+### b. Aircraft model with the fastest average speed
+
+```{r}
+planes <- nycflights13::planes
+
+# Calculating average speed per flight and finding the fastest model
+fastest_model <- flights %>%
+  filter(!is.na(distance) & !is.na(air_time) & air_time > 0) %>%
+  mutate(speed_mph = distance / (air_time / 60)) %>%  # Calculate speed in MPH
+  left_join(planes, by = "tailnum") %>%
+  group_by(model) %>% 
+  summarise(
+    average_speed_mph = mean(speed_mph, na.rm = TRUE),
+    number_of_flights = n()
+  ) %>%
+  ungroup() %>%
+  arrange(desc(average_speed_mph)) %>%
+  slice(1) %>%  # Take the fastest model
+  select(model, average_speed_mph, number_of_flights)
+
+print(fastest_model)
+```
+
+## Problem 2 - get_temp()
+
+Composing get_temp()
+```{r}
+#' Get Average Temperature for a Given Month and Year
+#'
+#' This function calculates the average temperature for a specified month and year
+#' from the provided data set. It allows users to select the temperature unit (Celsius or Fahrenheit)
+#' and customize the averaging function.
+#'
+#' @param month Either a numeric (1-12) or a string representing the month.
+#' @param year A numeric value indicating the year.
+#' @param data A data frame containing temperature data, including month and year columns.
+#' @param celsius Logical; if TRUE, returns the temperature in Celsius. Default is FALSE (Fahrenheit).
+#' @param average_fn A function to compute the average temperature. Default is \code{mean}.
+#'
+#' @return A numeric vector of length 1, representing the average temperature.
+#' @export
+#'
+get_temp <- function(month_input, year_input, data, celsius = FALSE, average_fn = mean) {
+  # Check validity if it's numeric
+  if (is.numeric(month_input)) {
+    month_input_num <- month_input
+    
+    if (month_input_num < 1 || month_input_num > 12) {
+      stop("Invalid month name. Use numeric values 1-12 or abbreviations like 'Jan'.")
+    }
+  }
+  
+  # Convert month to numeric if it's a character
+  if (is.character(month_input)) {
+    month_input_num <- match(tolower(month_input), tolower(month.abb))
+    
+    # If no match, try matching with full month names
+    if (is.na(month_input_num)) {
+      month_input_num <- match(tolower(month_input), tolower(month.name))
+    }
+  }
+  
+  # Check for invalid month input
+  if (is.na(month_input)) {
+    stop("Invalid month name. Use numeric values 1-12 or abbreviations like 'Jan'.")
+  }
+  
+  # Filter data for the specified month and year
+  temp_data <- data %>%
+    filter(month_numeric == month_input_num & year == year_input)
+  
+  # Check if data is empty after filtering
+  if (nrow(temp_data) == 0) {
+    stop("No data found for the specified month and year.")
+  }
+  
+  # Apply the averaging function
+  avg_temp <- average_fn(temp_data$temp)
+  
+  # Convert to Celsius if required
+  if (celsius) {
+    avg_temp <- (avg_temp - 32) * 5 / 9
+  }
+  
+  return(avg_temp)
+}
+```
+
+Evaluating function through examples
+
+```{r}
+#| error: true
+nnmaps <- read.csv("/Users/hejie/Downloads/STATS 506/chicago-nmmaps.csv")
+
+get_temp("Apr", 1999, data = nnmaps)
+get_temp("Apr", 1999, data = nnmaps, celsius = TRUE)
+get_temp(10, 1998, data = nnmaps, average_fn = median)
+get_temp(13, 1998, data = nnmaps)
+get_temp(2, 2005, data = nnmaps)
+get_temp("November", 1999, data =nnmaps, celsius = TRUE,
+         average_fn = function(x) {
+           x %>% sort -> x
+           x[2:(length(x) - 1)] %>% mean %>% return
+         })
+```
+
+## Problem 3 - Visualization
+
+Load the dataset art_sales
+
+```{r}
+# Load the dataset
+art_sales <- read_csv("/Users/hejie/Downloads/STATS 506/df_for_ml_improved_new_market.csv")
+```
+
+### a. Is there a change in the sales price in USD over time?
+
+```{r}
+# Convert the date into valid form
+art_sales$eventdate <- as.Date(art_sales$eventdate, "%d/%m/%Y")
+
+# Derive the average price for each event date
+art_sales_summary <- art_sales %>%
+  group_by(eventdate) %>%
+  summarize(total_price_usd = sum(price_usd, na.rm = TRUE))
+
+# Plot using the summarized data
+ggplot(art_sales_summary, aes(x = eventdate, y = total_price_usd)) +
+  geom_line(color = "lightblue") +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_continuous(labels = function(x) format(x, big.mark = ",", scientific = FALSE)) +
+  labs(title = "Average Sales Price (USD) Over Time", x = "Event Date", y = "Average Sales Price (USD)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+The plot illustrates the trend in average sales prices for artworks over time. Starting around 2005, there is a noticeable increase in price volatility, with significant peaks reaching well over \$1,000,000. Following are persistent fluctuations in subsequent years. Prior to 2005, sales prices remained relatively low and stable. Overall, the plot implies that sales prices have indeed changed over time.
+
+### b. Does the distribution of genre of sales across years appear to change?
+
+```{r}
+# Gather genre columns into long format
+genre_columns <- grep("^Genre___", names(art_sales), value = TRUE)
+art_sales_long <- art_sales %>%
+  select(year, all_of(genre_columns)) %>%
+  pivot_longer(cols = all_of(genre_columns), names_to = "Genre", values_to = "Count") %>%
+  filter(Count == 1) %>%
+  mutate(Genre = str_replace(Genre, "^Genre___", ""))
+
+# Plot genre distribution by year
+ggplot(art_sales_long, aes(x = factor(year), fill = Genre)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Distribution of Genres Across Years", x = "Year", y = "Number of Sales") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+The plot illustrates a clear shift in the distribution of art sales genres across years. Beginning around 2005, there is a marked increase in the sales volume for `Painting` and `Sculpture`, both of which show consistent growth through 2012. In contrast, genres such as `Print` and `Photography` exhibit more gradual increases in sales. Overall, the plot suggests evolving market preferences, with certain genres gaining prominence over time.
+
+### c. How does the genre affect the change in sales price over time?
+
+```{r}
+# Prepare data with genres and price for plotting
+art_sales_genre_price <- art_sales %>%
+  pivot_longer(cols = all_of(genre_columns), names_to = "Genre", values_to = "is_genre") %>%
+  filter(is_genre == 1) %>%
+  mutate(Genre = str_replace(Genre, "^Genre___", ""))
+
+# Calculate the average price for each genre in each year
+art_sales_avg <- art_sales_genre_price %>%
+  group_by(year, Genre) %>%
+  summarize(avg_price = mean(price_usd, na.rm = TRUE))
+
+# Plot the average sales price by genre and year
+ggplot(art_sales_avg, aes(x = as.factor(year), y = avg_price, fill = Genre)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Average Sales Price by Genre and Year", x = "Year", y = "Average Sales Price (USD)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+The plot reveals a notable shift in the distribution of art sales genres over the years. From 2005 onward, there is a substantial increase in sales volume for genres such as `Painting` and `Sculpture`, both of which demonstrate consistent growth through 2012. This trend suggests that these genres may have gained popularity or become more accessible in the art market. In contrast, genres like `Print` and `Photography` show a more gradual increase in sales, reflecting a stable or niche demand. These distributional changes imply a shift in market preferences over time, with certain art genres receiving heightened attention and favor.
