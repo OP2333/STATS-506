@@ -12,6 +12,8 @@ execute:
   warning: false
 ---
 
+## Github Link: <https://github.com/OP2333/STATS-506/tree/main/STATS_506_Pset_4>
+
 ## Problem 1 - Tidyverse
 
 ### a. Generate tables for departure and arrival delays
@@ -88,6 +90,7 @@ print(fastest_model)
 ## Problem 2 - get_temp()
 
 Composing get_temp()
+
 ```{r}
 #' Get Average Temperature for a Given Month and Year
 #'
