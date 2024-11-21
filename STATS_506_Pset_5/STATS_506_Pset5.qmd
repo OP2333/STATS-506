@@ -1,0 +1,375 @@
+---
+title: "STATS_506_Pset5"
+format: 
+  html:
+      code-fold: true
+      code-summary: "Show the code"
+      embed-resources: true
+      smooth-scroll: true
+editor: visual
+author: Jie He
+execute:
+  warning: false
+---
+
+## Problem 1 - OOP Programming
+
+### a. Create the S4 class for rational numbers
+
+Constructor function for the rational class
+
+```{r}
+rational <- function(numerator, denominator = 1) {
+  new("rational", numerator = numerator, denominator = denominator)
+}
+```
+
+Validator to ensure denominator is non-zero
+
+```{r}
+setClass(
+  "rational",
+  slots = c(numerator = "numeric", denominator = "numeric"),
+  validity = function(object) {
+    if (object@denominator == 0) {
+      stop("Denominator cannot be zero.")
+    }
+    TRUE
+  }
+)
+```
+
+Show method
+
+```{r}
+setMethod(
+  "show",
+  "rational",
+  function(object) {
+    cat(paste0(object@numerator, "/", object@denominator), "\n")
+  }
+)
+```
+
+Simplify method
+
+```{r}
+setGeneric("simplify", function(x) standardGeneric("simplify"))
+setMethod(
+  "simplify",
+  "rational",
+  function(x) {
+    gcd <- function(a, b) {
+      if (b == 0) return(a)
+      gcd(b, a %% b)
+    }
+    divisor <- gcd(x@numerator, x@denominator)
+    x@numerator <- x@numerator / divisor
+    x@denominator <- x@denominator / divisor
+    return(x)
+  }
+)
+```
+
+Quotient method
+
+```{r}
+setGeneric("quotient", function(x, digits = NULL) standardGeneric("quotient"))
+setMethod(
+  "quotient",
+  "rational",
+  function(x, digits = NULL) {
+    result <- x@numerator / x@denominator
+    if (!is.null(digits)) {
+      if (!is.numeric(digits) || digits < 0) {
+        stop("Digits must be a non-negative number.")
+      }
+      result <- format(round(result, digits), nsmall = digits)
+    }
+    return(result)
+  }
+)
+```
+
+Addition, subtraction, multiplication, and division methods
+
+```{r}
+setGeneric("add", function(x, y) standardGeneric("add"))
+setMethod(
+  "add",
+  signature(x = "rational", y = "rational"),
+  function(x, y) {
+    numerator <- x@numerator * y@denominator + y@numerator * x@denominator
+    denominator <- x@denominator * y@denominator
+    simplify(rational(numerator, denominator))
+  }
+)
+
+setGeneric("subtract", function(x, y) standardGeneric("subtract"))
+setMethod(
+  "subtract",
+  signature(x = "rational", y = "rational"),
+  function(x, y) {
+    numerator <- x@numerator * y@denominator - y@numerator * x@denominator
+    denominator <- x@denominator * y@denominator
+    simplify(rational(numerator, denominator))
+  }
+)
+
+setGeneric("multiply", function(x, y) standardGeneric("multiply"))
+setMethod(
+  "multiply",
+  signature(x = "rational", y = "rational"),
+  function(x, y) {
+    numerator <- x@numerator * y@numerator
+    denominator <- x@denominator * y@denominator
+    simplify(rational(numerator, denominator))
+  }
+)
+
+setGeneric("divide", function(x, y) standardGeneric("divide"))
+setMethod(
+  "divide",
+  signature(x = "rational", y = "rational"),
+  function(x, y) {
+    if (y@numerator == 0) {
+      stop("Cannot divide by zero.")
+    }
+    numerator <- x@numerator * y@denominator
+    denominator <- x@denominator * y@numerator
+    simplify(rational(numerator, denominator))
+  }
+)
+```
+
+### b. Evaluate the 'rational' class
+
+Create objects
+
+```{r}
+r1 <- rational(24, 6)
+r2 <- rational(7, 230)
+r3 <- rational(0, 4)
+```
+
+Evaluate the following code
+
+```{r}
+#| error: true
+r1
+r3
+
+add(r1, r2)
+subtract(r1, r2)
+multiply(r1, r2)
+divide(r1, r2)
+add(r1, r3)
+multiply(r1, r3)
+divide(r2, r3) # This will throw an error because of division by zero
+
+quotient(r1)
+quotient(r2, digits = 3)
+quotient(r2, digits = 3.14) # This will throw an error
+quotient(r2, digits = "avocado") # This will throw an error
+q2 <- quotient(r2, digits = 3)
+q2
+quotient(r3)
+
+simplify(r1)
+simplify(r2)
+simplify(r3)
+```
+
+### c. Validator check
+
+Should throw an error
+
+```{r}
+#| error: true
+try(rational(1, 0))
+```
+
+## Problem 2 - Plotly
+
+Load packages
+
+```{r}
+library(tidyverse)
+library(plotly)
+```
+
+Load the dataset
+
+```{r}
+art_sales <- read_csv("/Users/hejie/Downloads/STATS 506/df_for_ml_improved_new_market.csv")
+```
+
+### a. Regenerate the plot
+
+Does the distribution of genre of sales across years appear to change?
+
+```{r}
+# Convert the date into valid form
+art_sales$eventdate <- as.Date(art_sales$eventdate, "%d/%m/%Y")
+
+# Derive the average price for each event date
+art_sales_summary <- art_sales %>%
+  group_by(eventdate) %>%
+  summarize(total_price_usd = sum(price_usd, na.rm = TRUE))
+
+# Prepare data for genre analysis
+genre_columns <- grep("^Genre___", names(art_sales), value = TRUE)
+art_sales_long <- art_sales %>%
+  select(eventdate, year, all_of(genre_columns), price_usd) %>%
+  pivot_longer(cols = all_of(genre_columns), names_to = "Genre", values_to = "Count") %>%
+  filter(Count == 1) %>%
+  mutate(Genre = str_replace(Genre, "^Genre___", ""))
+
+# Create the interactive plot for genre distribution over years
+fig1 <- plot_ly(art_sales_long, x = ~year, color = ~Genre) %>%
+  add_histogram() %>%
+  layout(
+    title = "Distribution of Genres Across Years",
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Number of Sales"),
+    barmode = "stack"
+  )
+
+# Display the plot
+fig1
+```
+
+The plot illustrates a clear shift in the distribution of art sales genres across years. Beginning around 2005, there is a marked increase in the sales volume for `Painting` and `Sculpture`, both of which show consistent growth through 2012. In contrast, genres such as `Print` and `Photography` exhibit more gradual increases in sales. Overall, the plot suggests evolving market preferences, with certain genres gaining prominence over time.
+
+### b. Generate an interactive plot
+
+Is there a change in the sales price in USD over time?
+
+How does the genre affect the change in sales price over time?
+
+```{r}
+# Derive the average price for each event date
+art_sales_summary <- art_sales %>%
+  group_by(eventdate) %>%
+  summarize(total_price_usd = sum(price_usd, na.rm = TRUE))
+
+# Prepare data for average sales price by genre and year
+art_sales_genre_price <- art_sales %>%
+  pivot_longer(cols = all_of(genre_columns), names_to = "Genre", values_to = "is_genre") %>%
+  filter(is_genre == 1) %>%
+  mutate(Genre = str_replace(Genre, "^Genre___", "")) %>%
+  group_by(eventdate, Genre) %>%
+  summarize(avg_price = mean(price_usd, na.rm = TRUE))
+
+# Create an interactive plot for total price and genre-wise average price over time
+fig2 <- plot_ly()
+
+# Add the total sales price over time
+fig2 <- fig2 %>% add_trace(
+  data = art_sales_summary,
+  x = ~eventdate,
+  y = ~total_price_usd,
+  type = 'scatter',
+  mode = 'lines',
+  name = 'Total Sales Price (USD)',
+  line = list(color = 'blue')
+)
+
+# Add traces for each genre
+fig2 <- fig2 %>% add_trace(
+  data = art_sales_genre_price,
+  x = ~eventdate,
+  y = ~avg_price,
+  type = 'scatter',
+  mode = 'lines+markers',
+  color = ~Genre,
+  name = ~Genre,
+  marker = list(size = 8, opacity = 0.7)
+)
+
+# Customize layout
+fig2 <- fig2 %>% layout(
+  title = "Change in Sales Price Over Time and by Genre",
+  xaxis = list(title = "Event Date"),
+  yaxis = list(title = "Sales Price (USD)"),
+  hovermode = "x unified",
+  legend = list(title = list(text = "Genre"))
+)
+
+# Display the plot
+fig2
+```
+
+The interactive plot illustrates trends in both average sales prices for artworks and the distribution of art sales genres over time. Starting around 2005, there is a noticeable increase in price volatility, with significant peaks reaching well over \$1,000,000, followed by persistent fluctuations in subsequent years. Prior to 2005, sales prices remained relatively low and stable, implying that sales prices have indeed changed over time. Additionally, from 2005 onward, there is a substantial increase in sales volume for genres such as `Painting` and `Sculpture`, both of which demonstrate consistent growth through 2012.
+
+## Problem 3 - data.table
+
+### a. Generate tables for departure and arrival delays
+
+Load the packages and datasets
+
+```{r}
+library(nycflights13)
+library(data.table)
+
+flights_dt <- as.data.table(nycflights13::flights)
+airports_dt <- as.data.table(nycflights13::airports)
+planes_dt <- as.data.table(nycflights13::planes)
+```
+
+Generating Table 1: Departure Delay Summary
+
+```{r}
+# Generating Table 1: Departure Delay Summary
+summary_dep_delay_dt <- flights_dt[, .(
+  mean_departure_delay = round(mean(dep_delay, na.rm = TRUE), 2),
+  median_departure_delay = round(median(dep_delay, na.rm = TRUE), 2)
+), by = origin][order(-mean_departure_delay)]
+
+# Join with airport names and select relevant columns
+summary_dep_delay_dt <- summary_dep_delay_dt[
+  airports_dt, on = .(origin = faa),
+  .(name, mean_departure_delay, median_departure_delay)
+]
+
+# Print the departure delay summary
+print(summary_dep_delay_dt)
+```
+
+Generating Table 2: Arrival Delay Summary
+
+```{r}
+# Generating Table 2: Arrival Delay Summary
+summary_arr_delay_dt <- flights_dt[, .(
+  mean_arrival_delay = round(mean(arr_delay, na.rm = TRUE), 2),
+  median_arrival_delay = round(median(arr_delay, na.rm = TRUE), 2),
+  num_flights = .N
+), by = dest][num_flights >= 10][order(-mean_arrival_delay)]
+
+# Join with airport names and select relevant columns
+summary_arr_delay_dt <- summary_arr_delay_dt[
+  airports_dt, on = .(dest = faa),
+  .(name, mean_arrival_delay, median_arrival_delay)
+]
+
+# Print the arrival delay summary
+print(na.omit(summary_arr_delay_dt))
+```
+
+### b. Aircraft model with the fastest average speed
+
+```{r}
+# Calculate average speed per flight and find the fastest model
+fastest_model_dt <- flights_dt[
+  !is.na(distance) & !is.na(air_time) & air_time > 0,
+  .(speed_mph = distance / (air_time / 60), tailnum)
+][planes_dt, on = .(tailnum)][
+  , .(
+    average_speed_mph = mean(speed_mph, na.rm = TRUE),
+    number_of_flights = .N
+  ), by = model
+][order(-average_speed_mph)][1]
+
+# Print the fastest model
+print(fastest_model_dt)
+```
