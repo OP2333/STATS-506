@@ -12,6 +12,8 @@ execute:
   warning: false
 ---
 
+## Github Link: <https://github.com/OP2333/STATS-506/tree/main/STATS_506_Pset_5>
+
 ## Problem 1 - OOP Programming
 
 ### a. Create the S4 class for rational numbers
