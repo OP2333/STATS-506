@@ -1,0 +1,231 @@
+---
+title: "STATS_506_Pset6"
+format: 
+  html:
+      code-fold: true
+      code-summary: "Show the code"
+      embed-resources: true
+      smooth-scroll: true
+editor: visual
+author: Jie He
+execute:
+  warning: false
+---
+
+## **Stratified Bootstrapping**
+
+### a.
+
+Load packages
+
+```{r}
+library(DBI)
+library(dplyr)
+library(parallel)
+library(purrr)
+library(future)
+library(furrr)
+```
+
+Import the SQLite database of the Lahman data
+
+```{r}
+lahman <- dbConnect(RSQLite::SQLite(), "/Users/hejie/Downloads/STATS 506/lahman_1871-2022.sqlite")
+
+fielding <- dbGetQuery(lahman, "
+SELECT teamID, PO, A, InnOuts
+  FROM Fielding
+")
+
+dbDisconnect(lahman) 
+```
+
+Clean and process the fielding data, and calculate the average RF for each team
+
+```{r}
+fielding <- fielding %>% 
+  filter(!is.na(PO) & 
+           !is.na(A) &
+           !is.na(InnOuts) & 
+           InnOuts != 0) %>%
+  mutate(RF = 3 * (PO + A) / InnOuts)
+
+average_RF <- fielding %>%
+  group_by(teamID) %>%
+  summarise(avg_RF = mean(RF)) %>%
+  ungroup
+
+head(average_RF)
+```
+
+Without Parallel Processing
+
+```{r}
+# Number of bootstrap samples
+n_bootstrap <- 1000
+
+# Function to calculate average RF by team
+bootstrap_rf <- function(data) {
+  data %>%
+    group_by(teamID) %>%
+    summarise(avg_RF = mean(sample(RF, replace = TRUE), na.rm = TRUE))
+}
+
+# Run bootstrap without parallel processing
+set.seed(123) 
+bootstrap_results <- map(1:n_bootstrap, ~bootstrap_rf(fielding))
+
+bootstrap_estimate <- bind_rows(bootstrap_results)
+
+# Calculate standard deviation of bootstrap estimates for each team
+rf_summary <- bootstrap_estimate %>%
+  group_by(teamID) %>%
+  summarise(
+    estimated_RF = mean(avg_RF, na.rm = TRUE),             
+    standard_error = sd(avg_RF, na.rm = TRUE) / sqrt(n_bootstrap)      
+  )
+```
+
+Using parallel processing with the `parallel` package.
+
+```{r message=FALSE, warning=FALSE}
+# Number of working cores
+n_cores <- detectCores() - 4
+
+# Function to bootstrap in parallel
+bootstrap_parallel <- function(index) {
+  bootstrap_rf(fielding)
+}
+
+# Run bootstrap using parallel processing
+cl <- makeCluster(n_cores)
+
+clusterExport(cl, c("fielding", "bootstrap_rf"))
+package <- clusterEvalQ(cl, {
+  library(dplyr)
+})
+
+parallel_bootstrap_results <- parLapply(cl, 1:n_bootstrap, bootstrap_parallel)
+
+stopCluster(cl)
+
+# Combine all bootstrap results into a data frame
+parallel_bootstrap_estimates <- bind_rows(parallel_bootstrap_results)
+
+# Calculate mean RF, standard deviation, and standard error by team
+parallel_rf_summary <- parallel_bootstrap_estimates %>%
+  group_by(teamID) %>%
+  summarise(
+    estimated_RF = mean(avg_RF, na.rm = TRUE),
+    standard_error = sd(avg_RF, na.rm = TRUE) / sqrt(n_bootstrap)
+  )
+```
+
+Using futures with the `future` package.
+
+```{r}
+# Run bootstrap using future processing
+plan(multisession, workers = n_cores)
+
+future_bootstrap_results <- future_map(1:n_bootstrap, ~bootstrap_rf(fielding), .options = furrr_options(seed = TRUE))
+
+plan(sequential)
+
+# Combine all bootstrap results into a data frame
+future_bootstrap_estimates <- bind_rows(future_bootstrap_results)
+
+# Calculate mean RF, standard deviation, and standard error by team
+future_rf_summary <- future_bootstrap_estimates %>%
+  group_by(teamID) %>%
+  summarise(
+    estimated_RF = mean(avg_RF, na.rm = TRUE),
+    standard_error = sd(avg_RF, na.rm = TRUE) / sqrt(n_bootstrap)
+  )
+```
+
+### b.
+
+Combine the results from the three approaches
+
+```{r}
+combined_results <- rf_summary %>%
+  rename(no_parallel_estimated_RF = estimated_RF,
+         no_parallel_se = standard_error) %>%
+  left_join(parallel_rf_summary, by = "teamID") %>%
+  rename(parallel_estimated_RF = estimated_RF,
+         parallel_se = standard_error) %>%
+  left_join(future_rf_summary, by = "teamID") %>%
+  rename(future_estimated_RF = estimated_RF,
+         future_se = standard_error)
+```
+
+Get the 10 teams with the highest average RF
+
+no-parallel version
+
+```{r}
+top10_teams_no_parallel <- combined_results[,1:3] %>%
+  arrange(desc(no_parallel_estimated_RF)) %>%
+  head(10)
+
+top10_teams_no_parallel
+```
+
+parallel version
+
+```{r}
+top10_teams_parallel <- combined_results[, c(1,4,5)] %>%
+  arrange(desc(parallel_estimated_RF)) %>%
+  head(10)
+
+top10_teams_parallel
+```
+
+future version
+
+```{r}
+top10_teams_future <- combined_results[, c(1,6,7)] %>%
+  arrange(desc(future_estimated_RF)) %>%
+  head(10)
+
+top10_teams_future
+```
+
+### c.
+
+Performance of no-parallel method
+
+```{r}
+system.time({
+  set.seed(123) 
+  bootstrap_results <- map(1:n_bootstrap, ~bootstrap_rf(fielding))
+})
+```
+
+Performance of parallel method
+
+```{r}
+system.time({
+  cl <- makeCluster(n_cores)
+  clusterExport(cl, c("fielding", "bootstrap_rf"))
+  clusterEvalQ(cl, {
+    library(dplyr)
+  })
+  parallel_bootstrap_results <- parLapply(cl, 1:n_bootstrap, bootstrap_parallel)
+  stopCluster(cl)
+})
+```
+
+Performance of future method
+
+```{r}
+system.time({
+  plan(multisession, workers = n_cores)
+  
+  future_bootstrap_results <- future_map(1:n_bootstrap, ~bootstrap_rf(fielding), .options = furrr_options(seed = TRUE))
+  
+  plan(sequential)
+})
+```
+
+The no-parallel method took significantly longer compared to the parallel and future methods. This clearly demonstrates the benefit of using parallelization to speed up computation by distributing tasks across multiple cores.
